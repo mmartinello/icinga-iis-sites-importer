@@ -16,6 +16,7 @@ import argparse
 import logging
 import re
 import winrm
+import yaml
 
 
 class Importer:
@@ -35,6 +36,10 @@ class Importer:
 
         # manage arguments
         self._manage_arguments(args)
+
+        # Load and parse the configuration file if provided
+        if self.conf_file is not None:
+            self._load_conf_file()
 
 
     def _add_arguments(self, parser):
@@ -64,14 +69,12 @@ class Importer:
         parser.add_argument(
             '-U', '--username',
             dest='username',
-            required=True,
             help='The Windows winrm username'
         )
 
         parser.add_argument(
             '-p', '--password',
             dest='password',
-            required=True,
             help='The Windows winrm password'
         )
 
@@ -84,7 +87,6 @@ class Importer:
         parser.add_argument(
             '-o', '--output-file',
             dest='output_file',
-            required=True,
             help='The Icinga 2 output file'
         )
 
@@ -97,8 +99,13 @@ class Importer:
         parser.add_argument(
             '-t', '--template-file',
             dest='template_file',
-            required=True,
             help='The Jinja template file to be used to generate the output file'
+        )
+
+        parser.add_argument(
+            '-c', '--conf-file',
+            dest='conf_file',
+            help='The path of configuration file'
         )
 
 
@@ -128,9 +135,28 @@ class Importer:
         # Reload flag: reload Icinga 2 at the end
         self.icinga2_reload = getattr(args, 'reload', False)
 
+        # Configuration file
+        self.conf_file = getattr(args, 'conf_file', None)
+
         # Print arguments (debug)
         logging.debug('Command arguments: {}'.format(args))
-    
+
+    def _load_conf_file(self):
+        # If configuration file is not set return None
+        conf_file_path = self.conf_file
+        if conf_file_path is None:
+            return None
+
+        logging.info("Loading settings from {} ...".format(conf_file_path))
+
+        # Load the configuration file
+        with open(conf_file_path) as f:
+            conf = yaml.load(f, Loader=yaml.loader.SafeLoader)
+
+        # Return the configuration
+        logging.debug("Loaded configuration: {}".format(conf))
+        return conf
+        
     def _winrm_connect(self, url, username, password, insecure=False):
         if insecure:
             server_cert_validation = 'ignore'
