@@ -1,0 +1,37 @@
+###############################################################################
+# IIS to Icinga sites importer configuration file
+#
+
+
+# URL of the Windows winrm host
+winrm_url: http://localhost:5985/wsman
+
+# WinRM Username
+winrm_username: winrm
+
+# WinRM Password
+winrm_password: winrm
+
+# Skip the SSL certificate verification (true|false)
+winrm_insecure: true
+
+# Template file path: this file will be used to compile the output file
+template_file: /path/to/template/file
+
+# Output file path: the compiled file will be saved here
+output_file: /path/to/output/fikle
+
+# Reload Icinga after write the output file (true|false)
+reload_icinga: true
+
+# Site attributes: add here options which cannot be fetched from WinRM
+site_attributes:
+  website1_host_name:
+    port: 8080           # Port number (default: 80)
+    uri: /foo/bar        # URL to GET or POST (for example: HEAD, OPTIONS,
+                         # TRACE, PUT, DELETE, CONNECT, CONNECT:POST)
+    certificate_days: 14 # Minimum number of days a certificate has to be valid
+    expect: HTTP/1.      # Comma-delimited list of strings, at least one of
+                         # them is expected in the first (status) line of the
+                         # server response
+    method: GET          # Set HTTP method

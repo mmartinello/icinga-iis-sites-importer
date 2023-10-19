@@ -39,7 +39,8 @@ class Importer:
 
         # Load and parse the configuration file if provided
         if self.conf_file is not None:
-            self._load_conf_file()
+            conf = self._load_conf_file()
+            self._parse_conf(conf)
 
 
     def _add_arguments(self, parser):
@@ -141,6 +142,7 @@ class Importer:
         # Print arguments (debug)
         logging.debug('Command arguments: {}'.format(args))
 
+
     def _load_conf_file(self):
         # If configuration file is not set return None
         conf_file_path = self.conf_file
@@ -156,7 +158,34 @@ class Importer:
         # Return the configuration
         logging.debug("Loaded configuration: {}".format(conf))
         return conf
-        
+
+
+    def _parse_conf(self, conf={}):
+        if conf['winrm_url']:
+            self.winrm_url = conf['winrm_url']
+
+        if conf['winrm_username']:
+            self.winrm_username = conf['winrm_username']
+
+        if conf['winrm_password']:
+            self.winrm_password = conf['winrm_password']
+
+        if conf['winrm_insecure']:
+            self.winrm_insecure = conf['winrm_insecure']
+
+        if conf['template_file']:
+            self.template_file = conf['template_file']
+
+        if conf['output_file']:
+            self.output_file = conf['output_file']
+
+        if conf['reload_icinga']:
+            self.reload_icinga = conf['reload_icinga']
+
+        if conf['site_attributes']:
+            self.site_attributes = conf['site_attributes']
+
+
     def _winrm_connect(self, url, username, password, insecure=False):
         if insecure:
             server_cert_validation = 'ignore'
@@ -171,7 +200,8 @@ class Importer:
         )
 
         return session
-    
+
+
     def _execute_ps(self, session, command):
         rs = session.run_ps(command)
         self.std_out = rs.std_out
@@ -216,7 +246,8 @@ class Importer:
                 continue
 
         return sites
-    
+
+
     def _parse_bindings(self, input):
         # http *:80:romacostruzioni-alcamo-dbw.test.ies.it,
         bindings = []
@@ -248,7 +279,8 @@ class Importer:
                 continue
 
         return bindings
-    
+
+
     def _compile_sites_objects(self, sites, site_attributes={}):
         objects = []
 
@@ -274,10 +306,12 @@ class Importer:
 
         # Returb the compiled site objects
         return objects
-    
+
+
     def _get_attributes(self):
         attributes = {}
         return attributes
+
 
     def handle(self):
         msg = "Creating a new WinRM connection to {} with username {}"
