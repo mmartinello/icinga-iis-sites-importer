@@ -222,6 +222,36 @@ class Importer:
                 continue
 
         return bindings
+    
+    def _compile_sites_objects(self, sites, site_attributes={}):
+        objects = []
+
+        logging.debug("Passed site attributes: {}".format(site_attributes))
+
+        # Cycle sites
+        for site in sites:
+            site_name = site['name']
+            logging.debug("Site name: {}".format(site_name))
+
+            # If attributes are set for the current site, add them, else
+            # add nothing
+            if site_name in site_attributes:
+                attributes = site_attributes[site_name]
+            else:
+                attributes = {}
+
+            # Add the attribute property to the current site object
+            site['attributes'] = attributes
+
+            # Add the current site to site objects
+            objects.append(site)
+
+        # Returb the compiled site objects
+        return objects
+    
+    def _get_attributes(self):
+        attributes = {}
+        return attributes
 
     def handle(self):
         msg = "Creating a new WinRM connection to {} with username {}"
@@ -251,6 +281,14 @@ class Importer:
         logging.debug("Command output: {}".format(std_out))
         iis_sites = self._parse_iis_sites(std_out)
         logging.debug("IIS Sites: {}".format(iis_sites))
+
+        # Get attributes
+        site_attributes = self._get_attributes()
+        logging.debug("Site attributes: {}".format(site_attributes))
+
+        # Combine the attributes with sites to generate site objects
+        sites = self._compile_sites_objects(iis_sites, site_attributes)
+        logging.debug("Sites objects: {}".format(sites))
 
 
 if __name__ == "__main__":
