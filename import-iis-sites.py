@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+
+"""
+This script imports websites from an IIS instance and generate Icinga 2
+services
+
+authors:
+    Mattia Martinello - mattia@mattiamartinello.com
+"""
+
+_VERSION = '1.0'
+_VERSION_DESCR = 'Icinga 2 IIS Sites Importer'
+_COMMAND = 'Get-IISSite | ft Name,State,Bindings -HideTableHeaders -auto'
+
+import argparse
+import logging
+import re
+import winrm
+
+
+class Importer:
+    """Connect to the Windows host, import IIS sites and write the Icinga 2
+    configuration file.
+    """
+
+    def __init__(self):
+        # init the cmd line parser
+        parser = argparse.ArgumentParser(
+            description='Icinga 2 IIS Sites Importer'
+        )
+        self._add_arguments(parser)
+
+        # read the command line
+        args = parser.parse_args()
+
+        # manage arguments
+        self._manage_arguments(args)
+
+
+    def _add_arguments(self, parser):
+        """Add command arguments to the argument parser.
+        """
+
+        parser.add_argument(
+            '-V', '--version',
+            action='version',
+            version = '%(prog)s v{} - {}'.format(_VERSION, _VERSION_DESCR)
+        )
+
+        parser.add_argument(
+            '--debug',
+            action="store_true",
+            help='Print debugging info to console '
+                 '(WARNING: password will be printed!)'
+        )
+
+        parser.add_argument(
+            '-u', '--url',
+            dest='url',
+            default='http://localhost:5985/wsman',
+            help='The Windows winrm host'
+        )
+
+        parser.add_argument(
+            '-U', '--username',
+            dest='username',
+            required=True,
+            help='The Windows winrm username'
+        )
+
+        parser.add_argument(
+            '-p', '--password',
+            dest='password',
+            required=True,
+            help='The Windows winrm password'
+        )
+
+        parser.add_argument(
+            '-k', '--insecure',
+            action='store_true',
+            help='Skip the SSL certificate verification'
+        )
+
+        parser.add_argument(
+            '-o', '--output-file',
+            dest='output_file',
+            required=True,
+            help='The Icinga 2 output file'
+        )
+
+        parser.add_argument(
+            '-r', '--reload',
+            action='store_true',
+            help='Reload Icinga 2 after import'
+        )
+
+        parser.add_argument(
+            '-t', '--template-file',
+            dest='template_file',
+            required=True,
+            help='The Jinja template file to be used to generate the output file'
+        )
+
+
+    def _manage_arguments(self, args):
+        """Get command arguments from the argument parser and load them.
+        """
+
+        # Debug flag
+        self.debug = getattr(args, 'debug', False)
+        if self.debug:
+            logging.basicConfig(level=logging.DEBUG)
+
+        # WinRM url, username and password
+        self.winrm_url = getattr(args, 'url')
+        self.winrm_username = getattr(args, 'username')
+        self.winrm_password = getattr(args, 'password')
+
+        # Insecure flag: skip SSL certificate validation
+        self.winrm_insecure = getattr(args, 'insecure', False)
+
+        # Output file: the output file will be saved here
+        self.output_file_path = getattr(args, 'output_file')
+
+        # Template file: the output file will be saved here
+        self.template_file_path = getattr(args, 'template_file')
+
+        # Reload flag: reload Icinga 2 at the end
+        self.icinga2_reload = getattr(args, 'reload', False)
+
+        # Print arguments (debug)
+        logging.debug('Command arguments: {}'.format(args))
+    
+    def _winrm_connect(self, url, username, password, insecure=False):
+        if insecure:
+            server_cert_validation = 'ignore'
+        else:
+            server_cert_validation = 'validate'
+
+        session = winrm.Session(
+            url,
+            auth=(username, password),
+            transport='ntlm',
+            server_cert_validation=server_cert_validation
+        )
+
+        return session
+    
+    def _execute_ps(self, session, command):
+        rs = session.run_ps(command)
+        self.std_out = rs.std_out
+        self.std_err = rs.std_err
+        self.status_code = rs.status_code
+
+    def _parse_iis_sites(self, input):
+        input = input.decode('utf-8')
+        sites = []
+
+        rows = re.split('\\r\\n', input)
+        for row in rows:
+            # Skip empty rows
+            if row == '':
+                continue
+            
+            # Trim the line
+            row = row.strip()
+
+            # Match the line exporting data from the table
+            logging.debug("Exporting the row '{}'".format(row))
+            try:
+                pattern = r'^(\S+)\s+(.+)\s+{(.+)}\s*$'
+                matches = re.search(pattern, row)
+                name = matches.group(1)
+                state = matches.group(2)
+                bindings = matches.group(3)
+
+                logging.debug("Name: {}".format(name))
+                logging.debug("State: {}".format(state))
+                logging.debug("Bindings: {}".format(bindings))
+
+                bindings = self._parse_bindings(bindings)
+
+                site = {
+                    'name': name,
+                    'state': state,
+                    'bindings': bindings
+                }
+                sites.append(site)
+            except:
+                continue
+
+        return sites
+    
+    def _parse_bindings(self, input):
+        # http *:80:romacostruzioni-alcamo-dbw.test.ies.it,
+        bindings = []
+
+        rows = re.split(',', input)
+        for row in rows:
+            logging.debug("Matching the binding '{}'".format(row))
+            try:
+                pattern = r'^(\S+)\s(.+):([0-9]+):(\S+)$'
+                matches = re.search(pattern, row)
+                type = matches.group(1)
+                ip_address = matches.group(2)
+                port = matches.group(3)
+                host_name = matches.group(4)
+
+                logging.debug("Type: {}".format(type))
+                logging.debug("IP Address: {}".format(ip_address))
+                logging.debug("Port: {}".format(port))
+                logging.debug("Host name: {}".format(host_name))
+
+                binding = {
+                    'type': type,
+                    'ip_address': ip_address,
+                    'port': port,
+                    'host_name': host_name
+                }
+                bindings.append(binding)
+            except:
+                continue
+
+        return bindings
+
+    def handle(self):
+        msg = "Creating a new WinRM connection to {} with username {}"
+        msg+= " and password {} ..."
+        msg = msg.format(
+            self.winrm_url,
+            self.winrm_username,
+            self.winrm_password
+        )
+        logging.debug(msg)
+
+        # Execute a WinRM connection
+        session = self._winrm_connect(
+            self.winrm_url,
+            self.winrm_username,
+            self.winrm_password,
+            self.winrm_insecure
+        )
+
+        # Execute the PowerShell command
+        command = _COMMAND
+        msg = "Executing the PowerShell command: {} ...".format(command)
+        logging.debug(msg)
+        self._execute_ps(session, command)
+
+        std_out = self.std_out
+        logging.debug("Command output: {}".format(std_out))
+        iis_sites = self._parse_iis_sites(std_out)
+        logging.debug("IIS Sites: {}".format(iis_sites))
+
+
+if __name__ == "__main__":
+    # Run the program
+    main = Importer()
+    main.handle()
