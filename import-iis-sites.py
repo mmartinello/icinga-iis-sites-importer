@@ -13,6 +13,7 @@ _VERSION_DESCR = 'Icinga 2 IIS Sites Importer'
 _COMMAND = 'Get-IISSite | ft Name,State,Bindings -HideTableHeaders -auto'
 
 import argparse
+import jinja2
 import logging
 import re
 import winrm
@@ -311,6 +312,27 @@ class Importer:
     def _get_attributes(self):
         attributes = {}
         return attributes
+
+    
+    def _write_output_file(self, template_file, output_file, sites):
+        template_loader = jinja2.FileSystemLoader(searchpath="./")
+        template_env = jinja2.Environment(loader=template_loader)
+        template = template_env.get_template(template_file)
+
+        # Build file content
+        output = template.render(
+            sites=sites
+        )
+
+        # Write output file
+        try:
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(output)
+            f.close
+
+            logging.info("File {} written!".format(output_file))
+        except:
+            logging.error("Error writing file {}!".format(output_file))
 
 
     def handle(self):
