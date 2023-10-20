@@ -16,6 +16,7 @@ import argparse
 import jinja2
 import logging
 import re
+import subprocess
 import winrm
 import yaml
 
@@ -175,10 +176,10 @@ class Importer:
             self.winrm_insecure = conf['winrm_insecure']
 
         if conf['template_file']:
-            self.template_file = conf['template_file']
+            self.template_file_path = conf['template_file']
 
         if conf['output_file']:
-            self.output_file = conf['output_file']
+            self.output_file_path = conf['output_file']
 
         if conf['reload_icinga']:
             self.reload_icinga = conf['reload_icinga']
@@ -336,6 +337,28 @@ class Importer:
             logging.error("Error writing file {}!".format(output_file))
 
 
+    def _reload_icinga(self):
+        command = ["systemctl", "reload", "icinga2"]
+        logging.info("Reloading Icinga2 ...")
+        logging.debug("Reload command: {}".format(command))
+        
+        reload_process = subprocess.run(command)
+        return_code = reload_process.returncode
+
+        if return_code == 0:
+            logging.debug("Icinga2 succesfully reloaded!")
+        else:
+            msg = "Error during Icinga2 reload, command exited with {}!"
+            msg = msg.format(return_code)
+            logging.warning(msg)
+
+            msg = "Reload command stdout: {}".format(reload_process.stdout)
+            logging.debug(msg)
+
+            msg = "Reload command stderr: {}".format(reload_process.stderr)
+            logging.debug(msg)
+
+
     def handle(self):
         msg = "Creating a new WinRM connection to {} with username {}"
         msg+= " and password {} ..."
@@ -372,6 +395,17 @@ class Importer:
         # Combine the attributes with sites to generate site objects
         sites = self._compile_sites_objects(iis_sites, site_attributes)
         logging.debug("Sites objects: {}".format(sites))
+
+        # Write the output file
+        self._write_output_file(self.template_file_path, 
+                                self.output_file_path,
+                                sites)
+        
+        # Reload Icinga2 if needed
+        if self.icinga2_reload:
+            self.reload_icinga()
+        else:
+            logging.debug("Icinga2 reload not needed, skipping ...")
 
 
 if __name__ == "__main__":
