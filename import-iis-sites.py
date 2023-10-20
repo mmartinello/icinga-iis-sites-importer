@@ -185,6 +185,8 @@ class Importer:
 
         if conf['site_attributes']:
             self.site_attributes = conf['site_attributes']
+        else:
+            self.site_attributes = {}
 
 
     def _winrm_connect(self, url, username, password, insecure=False):
@@ -310,8 +312,7 @@ class Importer:
 
 
     def _get_attributes(self):
-        attributes = {}
-        return attributes
+        return self.site_attributes
 
     
     def _write_output_file(self, template_file, output_file, sites):
