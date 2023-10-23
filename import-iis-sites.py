@@ -117,7 +117,7 @@ class Importer:
         """
 
         # Debug flag
-        self.debug = getattr(args, 'debug', False)
+        self.debug = getattr(args, 'debug', None)
         if self.debug:
             logging.basicConfig(level=logging.DEBUG)
 
@@ -127,7 +127,7 @@ class Importer:
         self.winrm_password = getattr(args, 'password')
 
         # Insecure flag: skip SSL certificate validation
-        self.winrm_insecure = getattr(args, 'insecure', False)
+        self.winrm_insecure = getattr(args, 'insecure', None)
 
         # Output file: the output file will be saved here
         self.output_file_path = getattr(args, 'output_file')
@@ -136,7 +136,7 @@ class Importer:
         self.template_file_path = getattr(args, 'template_file')
 
         # Reload flag: reload Icinga 2 at the end
-        self.icinga2_reload = getattr(args, 'reload', False)
+        self.reload_icinga = getattr(args, 'reload', None)
 
         # Configuration file
         self.conf_file = getattr(args, 'conf_file', None)
@@ -188,6 +188,8 @@ class Importer:
             self.site_attributes = conf['site_attributes']
         else:
             self.site_attributes = {}
+
+        logging.debug("Parsed configuration: {}".format(conf))
 
 
     def _winrm_connect(self, url, username, password, insecure=False):
@@ -407,7 +409,7 @@ class Importer:
                                 sites)
         
         # Reload Icinga2 if needed
-        if self.icinga2_reload:
+        if self.reload_icinga:
             self._reload_icinga()
         else:
             logging.debug("Icinga2 reload not needed, skipping ...")
