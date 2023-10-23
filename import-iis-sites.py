@@ -184,6 +184,9 @@ class Importer:
         if conf['reload_icinga']:
             self.reload_icinga = conf['reload_icinga']
 
+        if conf['debug']:
+            self.debug = conf['debug']
+
         if conf['site_attributes']:
             self.site_attributes = conf['site_attributes']
         else:

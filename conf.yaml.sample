@@ -24,6 +24,9 @@ output_file: /path/to/output/fikle
 # Reload Icinga after write the output file (true|false)
 reload_icinga: true
 
+# Debug
+debug: true
+
 # Site attributes: add here options which cannot be fetched from WinRM
 site_attributes:
   website1_host_name:
