@@ -1,0 +1,33 @@
+###############################################################################
+# DEFINIZIONI PER IL MONITORAGGIO DEI SITI DI IIS
+# Server test.test.dc.ies.it
+
+# Questo file viene automaticamente aggiornato regolarmente dallo script
+# import-iis-sites.py eseguito tramite cron
+
+# Non modificare manualmente, ogni modifica verrà sovrascritta!
+
+{% for site in sites -%}
+{%- set binding = site.bindings[0] -%}
+{%- set attributes = site.attributes if site.attributes is defined else {} -%}
+{%- set port = attributes.port if attributes.port else binding.port -%}
+
+vars.http_vhosts["Sito IIS {{ site.name }}"] = {
+    http_uri = "{{ attributes.uri if attributes.uri else '/' }}"
+    http_address = "{{ binding.host_name }}"
+    http_port = {{ port }}
+    {%- if binding.type == 'https' %}
+    http_ssl = true
+    {%- if attributes.certificate_days %}
+    http_certificate = {{ attributes.certificate_days }}
+    {%- endif -%}
+{%- endif %}
+    {%- if attributes.expect %}
+    http_expect = {{ attributes.expect }}
+{%- endif %}
+    {%- if attributes.method %}
+    method = {{ attributes.method }}
+{%- endif %}
+}
+
+{% endfor %}
