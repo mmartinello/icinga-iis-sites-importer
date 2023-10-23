@@ -342,21 +342,26 @@ class Importer:
         logging.info("Reloading Icinga2 ...")
         logging.debug("Reload command: {}".format(command))
         
-        reload_process = subprocess.run(command)
-        return_code = reload_process.returncode
+        try:
+            reload_process = subprocess.run(command)
+            return_code = reload_process.returncode
 
-        if return_code == 0:
-            logging.debug("Icinga2 succesfully reloaded!")
-        else:
-            msg = "Error during Icinga2 reload, command exited with {}!"
-            msg = msg.format(return_code)
-            logging.warning(msg)
+            if return_code == 0:
+                logging.debug("Icinga2 succesfully reloaded!")
+            else:
+                msg = "Error during Icinga2 reload, command exited with {}!"
+                msg = msg.format(return_code)
+                logging.warning(msg)
 
-            msg = "Reload command stdout: {}".format(reload_process.stdout)
-            logging.debug(msg)
+                msg = "Reload command stdout: {}".format(reload_process.stdout)
+                logging.debug(msg)
 
-            msg = "Reload command stderr: {}".format(reload_process.stderr)
-            logging.debug(msg)
+                msg = "Reload command stderr: {}".format(reload_process.stderr)
+                logging.debug(msg)
+        except Exception as error:
+            msg = "Cannot reload Icinga2 due to unexpected error: {}!"
+            msg = msg.format(error)
+            logging.error(msg)
 
 
     def handle(self):
@@ -403,7 +408,7 @@ class Importer:
         
         # Reload Icinga2 if needed
         if self.icinga2_reload:
-            self.reload_icinga()
+            self._reload_icinga()
         else:
             logging.debug("Icinga2 reload not needed, skipping ...")
 
