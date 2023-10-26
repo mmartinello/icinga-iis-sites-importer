@@ -10,7 +10,8 @@ authors:
 
 _VERSION = '1.0'
 _VERSION_DESCR = 'Icinga 2 IIS Sites Importer'
-_COMMAND = 'Get-IISSite | ft Name,State,Bindings -HideTableHeaders -auto'
+#_COMMAND = 'Get-IISSite | ft Name,State,Bindings -HideTableHeaders -auto'
+_COMMAND = 'Get-Content -Path C:\\Windows\\System32\\inetsrv\\Config\\applicationHost.config'
 
 import argparse
 import jinja2
@@ -18,6 +19,7 @@ import logging
 import re
 import subprocess
 import winrm
+import xml.etree.ElementTree as ET
 import yaml
 
 
@@ -217,7 +219,8 @@ class Importer:
         self.std_err = rs.std_err
         self.status_code = rs.status_code
 
-    def _parse_iis_sites(self, input):
+
+    def _parse_iis_sites_from_table(self, input):
         input = input.decode('utf-8')
         sites = []
 
@@ -253,6 +256,51 @@ class Importer:
                 sites.append(site)
             except:
                 continue
+
+        return sites
+
+
+    def _parse_iis_sites_from_xml(self, input):
+        root = ET.fromstring(input)
+        logging.debug("Found root element: {}".format(root.tag))
+        
+        sites = []
+        for site in root.iter('site'):
+            name = site.get('name')
+            bindings = []
+
+            for binding in site.iter('binding'):
+                protocol = binding.get('protocol')
+
+                # If the binding protocol is not http or httpos continue to the
+                # next binding
+                if (protocol not in ['http', 'https']):
+                    continue
+
+                logging.debug("Binding protocol: {}".format(protocol))
+
+                string = binding.get('bindingInformation')
+                parts = re.split(':', string)
+                
+                ip_address = parts[0]
+                port = parts[1]
+                host_name = parts[2]
+
+                # Assign binding to bindings
+                bindings.append({
+                    'protocol': protocol,
+                    'ip_address': ip_address,
+                    'port': port,
+                    'host_name': host_name
+                })
+
+            logging.debug("Name: {}".format(name))
+
+            site = {
+                'name': name,
+                'bindings': bindings
+            }
+            sites.append(site)
 
         return sites
 
@@ -395,7 +443,7 @@ class Importer:
 
         std_out = self.std_out
         logging.debug("Command output: {}".format(std_out))
-        iis_sites = self._parse_iis_sites(std_out)
+        iis_sites = self._parse_iis_sites_from_xml(std_out)
         logging.debug("IIS Sites: {}".format(iis_sites))
 
         # Get attributes
