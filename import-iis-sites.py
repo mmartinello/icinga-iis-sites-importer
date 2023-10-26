@@ -163,31 +163,31 @@ class Importer:
 
 
     def _parse_conf(self, conf={}):
-        if conf['winrm_url']:
+        if 'winrm_url' in conf:
             self.winrm_url = conf['winrm_url']
 
-        if conf['winrm_username']:
+        if 'winrm_username' in conf:
             self.winrm_username = conf['winrm_username']
 
-        if conf['winrm_password']:
+        if 'winrm_password' in conf:
             self.winrm_password = conf['winrm_password']
 
-        if conf['winrm_insecure']:
+        if 'winrm_insecure' in conf:
             self.winrm_insecure = conf['winrm_insecure']
 
-        if conf['template_file']:
+        if 'template_file' in conf:
             self.template_file_path = conf['template_file']
 
-        if conf['output_file']:
+        if 'output_file' in conf:
             self.output_file_path = conf['output_file']
 
-        if conf['reload_icinga']:
+        if 'reload_icinga' in conf:
             self.reload_icinga = conf['reload_icinga']
 
-        if conf['debug']:
+        if 'debug' in conf:
             self.debug = conf['debug']
 
-        if conf['site_attributes']:
+        if 'site_attributes' in conf:
             self.site_attributes = conf['site_attributes']
         else:
             self.site_attributes = {}
